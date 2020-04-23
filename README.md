@@ -143,7 +143,7 @@ nNuclearNorm[state_NamedTensor] := Total@SingularValueList@NamedTensorAsMatrix[s
 ```
 Since `SingularValueList` is not among the overloaded functions, we first need to convert to a matrix. Here, we queried the names of the indices used in `nPartialTranspose` so that this function works regardless of which names are chosen for the subsystems.
 
-With this, we can calculate the logarithmic negativity of a Bell diagonal state:
+With this, we can calculate the relevant part of the negativity of a Bell diagonal state:
 ```Mathematica
 Assuming[a ∈ Reals && b ∈ Reals && c ∈ Reals && d ∈ Reals,
   Simplify@nNuclearNorm@nPartialTranspose@nBellDiagonal@{a,b,c,d}
