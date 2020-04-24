@@ -205,13 +205,14 @@ NamedTensorAsMatrix[NamedTensor[rowNames_Association,colNames_Association,data_]
 Protect[NamedTensorAsMatrix];
 
 
-NamedTensorMatrixFunction[f_,NamedTensor[rowNames_Association,colNames_Association,data_],order_List]:=With[{rows=Length[rowNames],cols=Length[colNames],dimensions=TensorDimensions[data]},
-  NamedTensor[
-    AssociationThread[Table[Lookup[rowNames,Key[rowName],Nothing],{rowName,order}],Range[rows]],
-    AssociationThread[Table[Lookup[colNames,Key[colName],Nothing],{colName,order}],Range[rows+1,rows+cols]],
-    ArrayReshape[f@NamedTensorAsMatrix[NamedTensor[rowNames,colNames,data],order],dimensions[[Join[Values@rowNames,Values@colNames]]]]
-  ]
-];
+NamedTensorMatrixFunction[f_,NamedTensor[rowNames_Association,colNames_Association,data_],order_List]/;Union[Keys[rowNames],Keys[colNames]]===Union[order]:=
+  With[{rows=Length[rowNames],cols=Length[colNames],dimensions=TensorDimensions[data]},
+    NamedTensor[
+      AssociationThread[Select[order,KeyExistsQ[rowNames,#]&],Range[rows]],
+      AssociationThread[Select[order,KeyExistsQ[colNames,#]&],Range[rows+1,rows+cols]],
+      ArrayReshape[f@NamedTensorAsMatrix[NamedTensor[rowNames,colNames,data],order],dimensions[[Join[Values@rowNames,Values@colNames]]]]
+    ]
+  ];
 NamedTensorMatrixFunction[f_,NamedTensor[rowNames_Association,colNames_Association,data_]]:=NamedTensorMatrixFunction[f,NamedTensor[rowNames,colNames,data],DeleteDuplicates[Join[Keys[rowNames],Keys[colNames]]]];
 Protect[NamedTensorMatrixFunction];
 

@@ -151,7 +151,7 @@ Assuming[a ∈ Reals && b ∈ Reals && c ∈ Reals && d ∈ Reals,
 ```
 which will give
 ```Mathematica
-1/2 (Abs[a + b + c - d] + Abs[a + b - c + d] + Abs[a - b + c + d] + Abs[ -a + b + c + d])
+1/2 (Abs[a + b + c - d] + Abs[a + b - c + d] + Abs[a - b + c + d] + Abs[-a + b + c + d])
 ```
 
 ### Entanglement distillation
