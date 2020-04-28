@@ -1,6 +1,6 @@
 # NamedTensor Mathematica package
 
-Requires at least Mathematica 10.0.
+Requires at least Mathematica 10.0 (drop-in replacements are provided, full native support only from version 11.2 on).
 
 License: LPPL 1.3c
 
@@ -159,7 +159,7 @@ We will implement the DEJMPS entanglement distillation protocol. It first perfor
 ```Mathematica
 nDEJMPS$rotation = NamedMatrix[{{1, I}, {I, 1}} / Sqrt[2]];
 ```
-Alice will directly apply this, Bob will apply its conjugate.
+Alice will apply this, Bob will apply its conjugate.
 
 Then we directly implement the DEJMPS scheme as sketched above.
 ```Mathematica
@@ -188,8 +188,8 @@ Without writing one index, we were directly able to implement the plain text des
 - The quantum operation acts on two states to which we assign the names `"ϱ1"` and `"ϱ2"`.
 - The contractions are as follows - and now we must keep in mind that this is the common contraction order, i.e., the temporal order is reversed -: Alice's part of `"ϱ1"` is rotated; the output of the rotation is fed into the `"C"` (control) index of a CNot gate. Also Alice's part of `"ϱ2"` is rotated and passed on to the target index of the same CNot gate. We do the analogous actions on Bob's side.
 - We subselect on the target indices having the same value.
-- We sum over the results (here, an optimization would be to just take one result and multiply by two, since both summation entries give the same tensor anyways.
-- Finally, we don't want the output to give any conclusion about the internals. For this reason, we rename the remaining indices, `"cnotA.c"` and `"cnotB.C"` into `"A"` and `"B"`.
+- We sum over the results (here, an optimization would be to just take one result and multiply by two, since both summation entries give the same tensor anyways - but only on Bell-diagonal states).
+- Finally, we don't want the output to give any conclusion about the internals. For this reason, we rename the remaining indices, `"cnotA.C"` and `"cnotB.C"` into `"A"` and `"B"`.
 
 We can check this out:
 ```Mathematica

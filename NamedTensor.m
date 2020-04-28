@@ -79,7 +79,7 @@ Begin["`Private`"];
 (* pre-11.2: use own implementation for TakeList; very reduced and simplistic variant, hence in our private context *)
 
 
-If[Definition[TakeList]===Null,
+If[ToString@Definition[TakeList]==="Null",
   TakeList[list_,counts_List]:=With[{acounts=FoldList[Plus,0,counts]},Table[list[[acounts[[i-1]]+1;;acounts[[i]]]],{i,2,Length@acounts}]];
   SetAttributes[TakeList,NHoldRest];
   Protect[TakeList];
@@ -89,7 +89,7 @@ If[Definition[TakeList]===Null,
 (* pre-10.3: use own implementation of UpTo; extremely limited *)
 
 
-If[Definition[UpTo]===Null,
+If[ToString@Definition[UpTo]==="Null",
   Unprotect[Take];
   Take[a_,UpTo[n_]]:=If[Length[a]>n,Take[a,n],a];
   Protect[Take];
@@ -99,11 +99,11 @@ If[Definition[UpTo]===Null,
 (* pre-10.2: use simple implementations of ContainsExactly and Nothing *)
 
 
-If[Definition[ContainsExactly]===Null,
+If[ToString@Definition[ContainsExactly]==="Null",
   ContainsExactly[a_,b_]:=Union[a]===Union[b];
   Protect[ContainsExactly];
 ];
-If[Definition[Nothing]===Null,
+If[ToString@Definition[Nothing]==="Null",
   Unprotect[List];
   List[pre___,Nothing..,post___]:=List[pre,post];
   Protect[List];
@@ -113,10 +113,16 @@ If[Definition[Nothing]===Null,
 (* pre-10.1: use simple implementation of KeyValueMap *)
 
 
-If[Definition[KeyValueMap]===Null,
+If[ToString@Definition[KeyValueMap]==="Null",
   KeyValueMap[f_,a_Association]:=f@@@Replace[Normal[a],Rule->List,{1},Heads->True];
   KeyValueMap[f_]:=KeyValueMap[f,#]&;
 ];
+
+
+(* this function is applied on the indices before Mathematica's TensorContract is called - you may want to change it to Echo... *)
+
+
+`$ContractionMap=Identity;
 
 
 (* data extraction *)
@@ -332,7 +338,7 @@ Tr[NamedTensor[rowNames_Association,colNames_Association,data_],indices_List]:=W
           NamedTensor[
             newIndices/@KeyDrop[rowNames,contractionNames],
             newIndices/@KeyDrop[colNames,contractionNames],
-            TensorContract[data,contractionIndices]
+            TensorContract[data,`$ContractionMap[contractionIndices]]
           ]
         ]
       ]
@@ -369,7 +375,7 @@ Dot[Longest[elements__NamedTensor]]:=With[{tensors={elements}},
                    colIndices=MapIndexed[Function[{tensor,tensorPosition},KeyValueMap[If[KeyExistsQ[newIndices,indices[[First[tensorPosition],#2]]],#1->newIndices[indices[[First[tensorPosition],#2]]],Nothing]&,NamedTensorCols[tensor]]],tensors]},
                   NamedTensor[
                     Association[rowIndices],Association[colIndices],
-                    Activate@TensorContract[Inactive[TensorProduct]@@NamedTensorData/@tensors,Sort@contractionIndices]
+                    Activate@TensorContract[Inactive[TensorProduct]@@NamedTensorData/@tensors,`$ContractionMap[Sort@contractionIndices]]
                   ]
                 ]
               ]
@@ -405,7 +411,7 @@ TensorContract[elements_Association?(AllTrue[Head[#]===NamedTensor&]),contractio
                 NamedTensor[
                   AssociationMap[`TensorContract`replace,KeyDrop[rowIndexNames,Flatten@contractionIndices]],
                   AssociationMap[`TensorContract`replace,KeyDrop[colIndexNames,Flatten@contractionIndices]],
-                  Activate@TensorContract[Inactive[TensorProduct]@@NamedTensorData/@Values[elements],Sort@contractionIndices]
+                  Activate@TensorContract[Inactive[TensorProduct]@@NamedTensorData/@Values[elements],`$ContractionMap[Sort@contractionIndices]]
                 ]
               ]
             ]
