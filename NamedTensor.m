@@ -281,6 +281,17 @@ Do[
 (* extend System functions: functions that operate on the matrix representation and give matrices *)
 
 
+Unprotect[Inverse];
+Inverse[NamedTensor[rowNames_Association,colNames_Association,data_],order_List]/;Union[Keys[rowNames],Keys[colNames]]===Union[order]:=
+  With[{rows=Length[rowNames],cols=Length[colNames],dimensions=TensorDimensions[data]},
+    NamedTensor[
+      AssociationThread[Select[order,KeyExistsQ[colNames,#]&],Range[cols]],
+      AssociationThread[Select[order,KeyExistsQ[rowNames,#]&],Range[cols+1,cols+rows]],
+      ArrayReshape[Inverse@NamedTensorAsMatrix[NamedTensor[rowNames,colNames,data],order],dimensions[[Join[Values@colNames,Values@rowNames]]]]
+    ]
+  ];
+Inverse[NamedTensor[rowNames_Association,colNames_Association,data_]]:=Inverse[NamedTensor[rowNames,colNames,data],DeleteDuplicates[Join[Keys[rowNames],Keys[colNames]]]];
+Protect[Inverse];
 Do[
   With[{f=f},
     Unprotect[f];
@@ -288,7 +299,7 @@ Do[
     f[NamedTensor[rowNames_Association,colNames_Association,data_]]:=NamedTensorMatrixFunction[f,NamedTensor[rowNames,colNames,data]];
     Protect[f]
   ],
-{f,{Inverse,MatrixPower,MatrixExp,MatrixLog}}];
+{f,{MatrixPower,MatrixExp,MatrixLog}}];
 
 Unprotect[MatrixFunction];
 MatrixFunction[f_,NamedTensor[rowNames_Association,colNames_Association,data_]]:=NamedTensorMatrixFunction[MatrixFunction[f,#]&,NamedTensor[rowNames,colNames,data]];
