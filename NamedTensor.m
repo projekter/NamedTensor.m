@@ -68,6 +68,19 @@ NamedIndicesQ[names] is the corresponding operator form.
 NamedIndicesQ[tensor,namesRow,namesCol] allows to specify different names for rows and columns.
 
 NamedIndicesQ[namesRow,namesCol] is the corresponding operator form.";
+NamedRowsExactlyQ::usage="NamedRowsExactlyQ[tensor,names] gives True iff tensor contains all rows in names, and only those.
+
+NamedRowsExactlyQ[names] is the corresponding operator form.";
+NamedColumnsExactlyQ::usage="NamedColsQ[tensor,names] gives True iff tensor contains all columns in names, and only those.
+
+NamedColumnsExactlyQ[names] is the corresponding operator form.";
+NamedIndicesExactlyQ::usage="NamedIndicesExactlyQ[tensor,names] gives True iff tensor contains all rows and all columns in names, and only those.
+
+NamedIndicesExactlyQ[names] is the corresponding operator form.
+
+NamedIndicesExactlyQ[tensor,namesRow,namesCol] allows to specify different names for rows and columns.
+
+NamedIndicesExactlyQ[namesRow,namesCol] is the corresponding operator form.";
 NamedRows::usage="NamedRows[tensor] lists all row index names in tensor.";
 NamedColumns::usage="NamedColumns[tensor] lists all column index names in tensor.";
 NamedIndices::usage="NamedIndices[tensor] lists all index names in tensor.";
@@ -141,7 +154,7 @@ NamedTensor[indexNames_List,data_]:=With[{rank=TensorRank[data]},
   NamedTensor[AssociationThread[indexNames,Range[1,rank/2]],AssociationThread[indexNames,Range[rank/2 +1,rank]],data]
 ];
 NamedTensor[rowNames_Association,colNames_Association,data_]/;Length[rowNames]+Length[colNames]!=TensorRank[data]:=$Failed;
-NamedTensor[<||>, <||>, data_] := data;
+NamedTensor[<||>, <||>, data_]:=data;
 NamedTensor/:MakeBoxes[tensor:NamedTensor[rowNames_Association,colNames_Association,data_],form:(StandardForm|TraditionalForm)]:=
   With[{above={{BoxForm`SummaryItem[{"Row indices: ",Keys[rowNames]}],BoxForm`SummaryItem[{"Length: ",Length[rowNames]}]},
                 {BoxForm`SummaryItem[{"Column indices: ",Keys[colNames]}],BoxForm`SummaryItem[{"Length: ",Length[colNames]}]},
@@ -502,7 +515,17 @@ NamedIndicesQ[NamedTensor[rowNames_Association,colNames_Association,data_],names
 NamedIndicesQ[NamedTensor[rowNames_Association,colNames_Association,data_],namesRow_,namesCol_]:=NamedRowsQ[NamedTensor[rowNames,colNames,data],namesRow]&&NamedColumnsQ[NamedTensor[rowNames,colNames,data],namesCol];
 NamedIndicesQ[namesRow_,namesCol_]:=NamedIndicesQ[#,namesRow,namesCol]&;
 NamedIndicesQ[names_]:=NamedIndicesQ[#,names,names]&;
-Protect[NamedRowsQ,NamedColumnsQ,NamedIndicesQ];
+NamedRowsExactlyQ[NamedTensor[rowNames_Association,colNames_Association,data_],names_List]:=ContainsExactly[Keys[rowNames],names];
+NamedRowsExactlyQ[NamedTensor[rowNames_Association,colNames_Association,data_],name_String]:=Keys[rowNames]==={name};
+NamedRowsExactlyQ[names_]:=NamedRowsExactlyQ[#,names]&;
+NamedColumnsExactlyQ[NamedTensor[rowNames_Association,colNames_Association,data_],names_List]:=ContainsExactly[Keys[colNames],names];
+NamedColumnsExactlyQ[NamedTensor[rowNames_Association,colNames_Association,data_],name_String]:=Keys[colNames]==={name};
+NamedColumnsExactlyQ[names_]:=NamedColumnsExactlyQ[#,names]&;
+NamedIndicesExactlyQ[NamedTensor[rowNames_Association,colNames_Association,data_],names_]:=NamedRowsExactlyQ[NamedTensor[rowNames,colNames,data],names]&&NamedColumnsExactlyQ[NamedTensor[rowNames,colNames,data],names];
+NamedIndicesExactlyQ[NamedTensor[rowNames_Association,colNames_Association,data_],namesRow_,namesCol_]:=NamedRowsExactlyQ[NamedTensor[rowNames,colNames,data],namesRow]&&NamedColumnsExactlyQ[NamedTensor[rowNames,colNames,data],namesCol];
+NamedIndicesExactlyQ[namesRow_,namesCol_]:=NamedIndicesExactlyQ[#,namesRow,namesCol]&;
+NamedIndicesExactlyQ[names_]:=NamedIndicesExactlyQ[#,names,names]&;
+Protect[NamedRowsQ,NamedColumnsQ,NamedIndicesQ,NamedRowsExactlyQ,NamedColsExactlyQ,NamedIndicesExactlyQ];
 
 
 NamedRows[NamedTensor[rowNames_Association,colNames_Association,data_]]:=Keys[rowNames];
