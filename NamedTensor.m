@@ -243,7 +243,7 @@ Do[
     Unprotect[f];
     f[NamedTensor[rowNames_Association,colNames_Association,data1_],NamedTensor[rowNames_Association,colNames_Association,data2_]]:=NamedTensor[rowNames,colNames,f[data1,data2]];
     f[NamedTensor[rowNames1_Association,colNames1_Association,data1_],NamedTensor[rowNames2_Association,colNames2_Association,data2_]]/;ContainsExactly[Keys[rowNames1],Keys[rowNames2]]&&ContainsExactly[Keys[colNames1],Keys[colNames2]]:=
-      With[{rowOrder2=AssociationThread[Values[rowNames2],Keys[rowNames2]],colOrder2=AssociationThread[Values[colNames2],Keys[rowNames2]]},
+      With[{rowOrder2=AssociationThread[Values[rowNames2],Keys[rowNames2]],colOrder2=AssociationThread[Values[colNames2],Keys[colNames2]]},
         NamedTensor[rowNames1,colNames1,f[data1,TensorTranspose[data2,Table[If[KeyExistsQ[rowOrder2,i],rowNames1[rowOrder2[i]],colNames1[colOrder2[i]]],{i,TensorRank[data1]}]]]]
       ];
     f[NamedTensor[rowNames_Association,colNames_Association,data_],other_/;Head[other]=!=NamedTensor]:=NamedTensor[rowNames,colNames,f[data,other]];
