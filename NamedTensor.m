@@ -180,7 +180,6 @@ NamedTensor[rowNames_Association,colNames_Association,data_][rowParts_Associatio
 NamedTensor[rowNames_Association,colNames_Association,data_][rowParts_List,colParts_List]:=NamedTensor[rowNames,colNames,data][Association[rowParts],Association[colParts]];
 NamedTensor[rowNames_Association,colNames_Association,data_][parts_]:=NamedTensor[rowNames,colNames,data][parts,parts];
 NamedTensor[rowNames_Association,colNames_Association,data_][parts__Rule]:=With[{p=Association[parts]},NamedTensor[rowNames,colNames,data][p,p]];
-Protect[NamedTensor];
 
 
 NamedMatrix[data_/;TensorRank[data]===2]:=NamedTensor[<|""->1|>,<|""->2|>,data];
@@ -245,8 +244,13 @@ Do[
     f[NamedTensor[rowNames_Association,colNames_Association,data_],args___]:=NamedTensor[rowNames,colNames,f[data,args]];
     Protect[f]
   ],
-  {f,{Conjugate,Simplify,FullSimplify,SparseArray,Normal}}
+  {f,{Conjugate,Simplify,FullSimplify,SparseArray,Normal,N,Rationalize}}
 ];
+(* for SparseArrays, Rationalize doesn't work as expected... *)
+Unprotect[Rationalize];
+Rationalize[SparseArray[Automatic,dim_,background_,{1,csr_,data_}]]:=SparseArray[Automatic,dim,Rationalize[background],{1,csr,Rationalize[data]}];
+Rationalize[SparseArray[Automatic,dim_,background_,{1,csr_,data_}],dx_]:=SparseArray[Automatic,dim,Rationalize[background,dx],{1,csr,Rationalize[data,dx]}];
+Protect[Rationalize];
 
 
 (* extend System functions: functions that operate on the interpretation of the tensor *)
@@ -276,6 +280,19 @@ Do[
     Protect[f]
   ],
 {f,{Det,MatrixRank}}];
+Do[
+  With[{f=f},
+    Unprotect[f];
+    f[NamedTensor[rowNames_Association,colNames_Association,data1_],NamedTensor[rowNames_Association,colNames_Association,data2_]]:=f[data1,data2];
+    f[NamedTensor[rowNames1_Association,colNames1_Association,data1_],NamedTensor[rowNames2_Association,colNames2_Association,data2_]]/;ContainsExactly[Keys[rowNames1],Keys[rowNames2]]&&ContainsExactly[Keys[colNames1],Keys[colNames2]]:=
+      With[{rowOrder2=AssociationThread[Values[rowNames2],Keys[rowNames2]],colOrder2=AssociationThread[Values[colNames2],Keys[rowNames2]]},
+        f[data1,TensorTranspose[data2,Table[If[KeyExistsQ[rowOrder2,i],rowNames1[rowOrder2[i]],colNames1[colOrder2[i]]],{i,TensorRank[data1]}]]]
+      ];
+    f[NamedTensor[rowNames1_Association,colNames1_Association,data1_],NamedTensor[rowNames2_Association,colNames2_Association,data2_]]/;!ContainsExactly[Keys[rowNames1],Keys[rowNames2]]||!ContainsExactly[Keys[colNames1],Keys[colNames2]]=False;
+    Protect[f]
+  ],
+  {f,{Equal,SameQ}}
+];
 
 
 (* extend System functions: functions that operate on the matrix representation and give matrices *)
@@ -500,6 +517,9 @@ MatrixQ[NamedTensor[rowNames_Association,colNames_Association,data_]]:=Length[ro
 ArrayQ[NamedTensor[rowNames_Association,colNames_Association,data_]]:=True;
 TensorQ[NamedTensor[rowNames_Association,colNames_Association,data_]]:=True;
 Protect[VectorQ,MatrixQ,ArrayQ,TensorQ];
+
+
+Protect[NamedTensor];
 
 
 End[];
