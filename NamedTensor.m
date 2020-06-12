@@ -13,7 +13,7 @@ NamedTensor[indexNames,data] is a construction shorthand. indexNames is a list t
 
 
 NamedMatrix::usage="NamedMatrix[data] is a shorthand that converts a rank-2 tensor into a named tensor with empty names, one row and one column index.";
-NamedColVector::usage="NamedColVector[data] is a shorthand that converts a rank-1 tensor into a named tensor with one row index of empty name.";
+NamedColumnVector::usage="NamedColumnVector[data] is a shorthand that converts a rank-1 tensor into a named tensor with one row index of empty name.";
 NamedRowVector::usage="NamedRowVector[data] is a shorthand that converts a rank-1 tensor into a named tensor with one column index of empty name.";
 
 
@@ -22,6 +22,14 @@ RenameIndices::usage="RenameIndices[tensor,replacements] renames the row and col
 
 NamedTensorAsMatrix::usage="NamedTensorAsMatrix[tensor,order] converts a NamedTensor to a rank-2 tensor (standard List or SparseArray). By default, the levels are flattened together in the order as they appear in their associations, but a custom order can be specified.";
 NamedTensorMatrixFunction::usage="NamedTensorMatrixFunction[f,tensor,order] applies a function f to the NamedTensor tensor. Since f expects a standard matrix, it is first converted into a matrix (the order may be specified, else the default order is used). After this, the matrix is converted back to the named tensor. f must not change the dimensions of the matrix.";
+
+
+MergeRowIndices::usage="MergeRowIndices[tensor,indices->new,...] merges all row indices specified in `indices` into a new row index with name `new`. If `new` is omitted, the name of the first index specified in `indices` is taken instead.";
+MergeColumnIndices::usage="MergeColumnIndices[tensor,indices->new,...] merges all column indices specified in `indices` into a new column index with name `new`. If `new` is omitted, the name of the first index specified in `indices` is taken instead.";
+MergeIndices::usage="MergeIndices[tensor,indices->new,...] merges all indices specified in `indices` into a new index with name `new`. If `new` is omitted, the name of the first index specified in `indices` is taken instead. All indices must exist both as row and column indices.";
+(*SplitRowIndex::usage="SplitRowIndex[tensor,index->{{name1,dimension1},...},...] splits the row index specified in `index` into multiple new indices with given dimensions.";
+SplitColumnIndex::usage="SplitColumnIndex[tensor,index->{{name1,dimension1},...},...] splits the columm index specified in `index` into multiple new indices with given dimensions.";
+SplitIndex::usage="SplitIndex[tensor,index->{{name1,dimension1},...},...] splits the index specified in `index` into multiple new indices with given dimensions.";*)
 
 
 Transpose::usage=Transpose::usage<>"
@@ -196,9 +204,9 @@ NamedTensor[rowNames_Association,colNames_Association,data_][parts__Rule]:=With[
 
 
 NamedMatrix[data_/;TensorRank[data]===2]:=NamedTensor[<|""->1|>,<|""->2|>,data];
-NamedColVector[data_/;TensorRank[data]===1]:=NamedTensor[<|""->1|>,<||>,data];
+NamedColumnVector[data_/;TensorRank[data]===1]:=NamedTensor[<|""->1|>,<||>,data];
 NamedRowVector[data_/;TensorRank[data]===1]:=NamedTensor[<||>,<|""->1|>,data];
-Protect[NamedMatrix,NamedColVector,NamedRowVector];
+Protect[NamedMatrix,NamedColumnVector,NamedRowVector];
 
 
 RenameIndices[NamedTensor[rowNames_Association,colNames_Association,data_],newNames__]:=With[{renames=Association[newNames]},
@@ -215,7 +223,7 @@ NamedTensorAsMatrix[NamedTensor[rowNames_Association,colNames_Association,data_]
   With[{rowList=Table[Lookup[rowNames,Key[rowName],Nothing],{rowName,order}],colList=Table[Lookup[colNames,Key[colName],Nothing],{colName,order}]},
     If[
       rowList==={}||colList==={},
-      Flatten[data,colList],
+      Flatten[data,Join[rowList,colList]],
       Flatten[data,{rowList,colList}]
     ]
   ];
@@ -233,6 +241,67 @@ NamedTensorMatrixFunction[f_,NamedTensor[rowNames_Association,colNames_Associati
   ];
 NamedTensorMatrixFunction[f_,NamedTensor[rowNames_Association,colNames_Association,data_]]:=NamedTensorMatrixFunction[f,NamedTensor[rowNames,colNames,data],DeleteDuplicates[Join[Keys[rowNames],Keys[colNames]]]];
 Protect[NamedTensorMatrixFunction];
+
+
+(* reshaping the tensor *)
+
+
+MergeRowIndices[NamedTensor[rowNames_Association,colNames_Association,data_],merges_List/;VectorQ[merges,Head[#]===Rule&]]:=
+  With[{mergeLists=merges[[All,1]],mergeInto=merges[[All,2]],allMerges=Flatten[merges[[All,1]]]},
+    If[ContainsAll[Keys@rowNames,allMerges]&&DuplicateFreeQ[allMerges]&&ContainsNone[KeyDrop[rowNames,allMerges],mergeInto],
+      With[{allMergeValues=Values[rowNames[[Key/@allMerges]]],mergeLen=Length[merges]},
+        NamedTensor[
+          Association@KeyValueMap[
+            With[{mergeListPosition=FirstPosition[mergeLists,#1]},
+              Which[
+                MissingQ[mergeListPosition],
+                #1->#2-Count[allMergeValues,_?(LessThan[#2])]+mergeLen,(* this index was not merged; keep it - Flatten puts the merged levels to the beginning *)
+                mergeListPosition[[2]]==1,
+                mergeInto[[mergeListPosition[[1]]]]->mergeListPosition[[1]],(* this was the first index mentioned in the merge sublist, we keep it and rename it *)
+                True,
+                Nothing(* all other indices are deleted *)
+              ]
+            ]&,
+            rowNames
+          ],
+          #-Count[allMergeValues,_?(LessThan[#])]+mergeLen&/@colNames,
+          Flatten[data,Map[rowNames,mergeLists,{2}]]
+        ]
+      ],
+      $Failed
+    ]
+  ];
+MergeRowIndices[t_NamedTensor,merges_List/;VectorQ[merges,Head[#]===String&]]:=MergeRowIndices[t,{merges->First[merges]}];
+MergeRowIndices[t_NamedTensor,merges__]:=MergeRowIndices[t,Switch[Head[#],Rule,#,List,#->First[#]]&/@{merges}];
+MergeColumnIndices[NamedTensor[rowNames_Association,colNames_Association,data_],merges_List/;VectorQ[merges,Head[#]===Rule&]]:=
+  With[{mergeLists=merges[[All,1]],mergeInto=merges[[All,2]],allMerges=Flatten[merges[[All,1]]]},
+    If[ContainsAll[Keys@colNames,allMerges]&&DuplicateFreeQ[allMerges]&&ContainsNone[KeyDrop[colNames,allMerges],mergeInto],
+      With[{allMergeValues=Values[colNames[[Key/@allMerges]]],mergeLen=Length[merges]},
+        NamedTensor[
+          #-Count[allMergeValues,_?(LessThan[#])]+mergeLen&/@rowNames,
+          Association@KeyValueMap[
+            With[{mergeListPosition=FirstPosition[mergeLists,#1]},
+              Which[
+                MissingQ[mergeListPosition],
+                #1->#2-Count[allMergeValues,_?(LessThan[#2])]+mergeLen,(* this index was not merged; keep it - Flatten puts the merged levels to the beginning *)
+                mergeListPosition[[2]]==1,
+                mergeInto[[mergeListPosition[[1]]]]->mergeListPosition[[1]],(* this was the first index mentioned in the merge sublist, we keep it and rename it *)
+                True,
+                Nothing(* all other indices are deleted *)
+              ]
+            ]&,
+            colNames
+          ],
+          Flatten[data,Map[colNames,mergeLists,{2}]]
+        ]
+      ],
+      $Failed
+    ]
+  ];
+MergeColumnIndices[t_NamedTensor,merges_List/;VectorQ[merges,Head[#]===String&]]:=MergeColumnIndices[t,{merges->First[merges]}];
+MergeColumnIndices[t_NamedTensor,merges__]:=MergeColumnIndices[t,Switch[Head[#],Rule,#,List,#->First[#]]&/@{merges}];
+MergeIndices[t_NamedTensor,merges__]:=MergeRowIndices[MergeColumnIndices[t,merges],merges];
+Protect[MergeRowIndices,MergeColumnIndices,MergeIndices];
 
 
 (* extend System functions: functions that directly operate on the data *)
