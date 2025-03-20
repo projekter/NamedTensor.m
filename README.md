@@ -6,8 +6,6 @@ License: LPPL 1.3c
 
 Support the development:
 - [![PayPal](https://img.shields.io/badge/donate-via%20PayPal-blue.svg?style=flat)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=UTR3MRBYJ825A&source=url)
-- ![Bitcoin](https://img.shields.io/badge/donate-BTC-blue.svg?style=flat) 3KBFpoJuA4eSPLGXEf3jicqaV1czhK36fH
-- ![Ethereum](https://img.shields.io/badge/donate-ETH-blue.svg?style=flat) 0xE0F774221290b1E41ea62c2dd9af5dbD3df7c685
 
 ## Purpose
 This package introduces _named_ tensor objects. While Mathematica fully supports tensors in the form of nested lists since version 9.0, performing contractions of large tensors is cumbersome: each index has to be addressed by its position. This is a time-consuming and error-prone process. This package solves the issue by introducing an object that assigns names to every index. In automatically distinguishes row and column indices to allow automatic contractions.
