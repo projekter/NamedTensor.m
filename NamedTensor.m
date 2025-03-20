@@ -1,5 +1,8 @@
 (* ::Package:: *)
 
+(* make sure the symbol is already loaded to avoid protection warnings *)
+TensorProduct;
+
 BeginPackage["NamedTensor`"];
 
 
