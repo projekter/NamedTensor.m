@@ -22,6 +22,11 @@ NamedProjection[indexNames,data] is a construction shorthand for NamedProjection
 NamedProjection[...,Reals] does not conjugate.";
 
 
+NamedCondition::usage="NamedCondition[posProj,posOp,negProj,negOp] gives posProj\[TensorProduct]posOp+negProj\[TensorProduct]negOp. If either posProj or negProj are Automatic, they are inferred from the other. If either posOp or negOp are Automatic, they are identities. If they are lists or associations, they are wrapped in TensorProduct first.
+
+NamedCondition[posProj,posOp] is a shorthand for NamedCondition[posProj,posOp,Automatic,Automatic]."
+
+
 RenameIndices::usage="RenameIndices[tensor,replacements] renames the row and column indices in a NamedTensor object according to the rules or association specified (no patterns!)";
 
 
@@ -122,12 +127,16 @@ If[ToString@Definition[UpTo]==="Null",
 ];
 
 
-(* pre-10.2: use simple implementations of ContainsExactly and Nothing *)
+(* pre-10.2: use simple implementations of ContainsExactly, ContainsAll and Nothing *)
 
 
 If[ToString@Definition[ContainsExactly]==="Null",
   ContainsExactly[a_,b_]:=Union[a]===Union[b];
   Protect[ContainsExactly];
+];
+If[ToString@Definition[ContainsAll]==="Null",
+  ContainsAll[a_,b_]:=Complement[b,a]==={};
+  Protect[ContainsAll];
 ];
 If[ToString@Definition[Nothing]==="Null",
   Unprotect[List];
@@ -222,6 +231,40 @@ NamedProjection[indexNames_List,data_,rest___]:=With[{rank=TensorRank[data]},
   NamedProjection[NamedTensor[AssociationThread[indexNames,Range[rank]],<||>,data],rest]
 ];
 Protect[NamedMatrix,NamedColumnVector,NamedRowVector,NamedProjection];
+
+
+NamedCondition[posProj:NamedTensor[posProjRowNames_Association,posProjColNames_Association,_],posOp:NamedTensor[posOpRowNames_Association,posOpColNames_Association,_],
+  negProj:NamedTensor[negProjRowNames_,negProjColNames_,_],negOp:NamedTensor[negOpRowNames_,negOpColNames_,_]]/;
+  ContainsExactly[Keys[posProjRowNames],Keys[negProjRowNames]]&&ContainsExactly[Keys[posProjColNames],Keys[negProjColNames]]&&
+  ContainsExactly[Keys[posOpRowNames],Keys[negOpRowNames]]&&ContainsExactly[Keys[posOpColNames],Keys[negOpColNames]]:=posProj\[TensorProduct]posOp+negProj\[TensorProduct]negOp;
+NamedCondition[posProj_,posOp:NamedTensor[posOpRowNames_Association,posOpColNames_Association,posOpData_],negProj_,Automatic]:=
+  With[{shift=Length[posOpRowNames],dims=TensorDimensions[posOpData]},
+    NamedCondition[posProj,posOp,negProj,
+      NamedTensor[
+        AssociationThread[Keys[posOpRowNames],Range[shift]],
+        AssociationThread[Keys[posOpColNames],Range[shift+1,shift+Length[posOpColNames]]],
+        ArrayReshape[IdentityMatrix[Sqrt[Times@@dims],If[Head[posOpData]===SparseArray,SparseArray,List]],dims]
+      ]
+    ]
+  ];
+NamedCondition[posProj:NamedTensor[posProjRowNames_Association,posProjColNames_Association,posProjData_],posOp_,Automatic,negProj_]:=
+  With[{shift=Length[posProjRowNames],dims=TensorDimensions[posProjData]},
+    NamedCondition[posProj,posOp,
+      NamedTensor[
+        AssociationThread[Keys[posProjRowNames],Range[shift]],
+        AssociationThread[Keys[posProjColNames],Range[shift+1,shift+Length[posProjColNames]]],
+        ArrayReshape[IdentityMatrix[Sqrt[Times@@dims],If[Head[posProjData]===SparseArray,SparseArray,List]],dims]
+      ]-posProj,negProj
+    ]
+  ];
+NamedCondition[posProj_,Automatic,negProj_,negOp_NamedTensor]:=NamedCondition[negProj,negOp,posProj,Automatic];
+NamedCondition[Automatic,posOp_,negProj_NamedTensor,negOp_]:=NamedCondition[negProj,negOp,Automatic,posOp];
+NamedCondition[posProj_,posOp_,negProj_,negOp_]:=With[{heads=Union[Head/@{posProj,posOp,negProj,negOp}]},
+  NamedCondition[TensorProduct[posProj],TensorProduct[posOp],TensorProduct[negProj],TensorProduct[negOp]]/;ContainsAll[{Association,List,NamedTensor},heads]&&heads=!={NamedTensor}
+]
+NamedCondition[posProj_,posOp_]/;ContainsAll[{Association,List,NamedTensor},Union[Head/@{posProj,posOp}]]:=
+  NamedCondition[TensorProduct[posProj],TensorProduct[posOp],Automatic,Automatic];
+Protect[NamedCondition];
 
 
 RenameIndices[NamedTensor[rowNames_Association,colNames_Association,data_],newNames__]:=With[{renames=Association[newNames]},
