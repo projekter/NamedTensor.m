@@ -113,6 +113,10 @@ NamedColumns::usage="NamedColumns[tensor] lists all column index names in tensor
 NamedIndices::usage="NamedIndices[tensor] lists all index names in tensor.";
 
 
+(* load some lazy-load packages *)
+TensorProduct;ContainsExactly;
+
+
 Begin["`Private`"];
 
 
