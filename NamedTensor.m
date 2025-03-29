@@ -169,21 +169,23 @@ NamedTensor[indexNames_List,data_]:=With[{rank=TensorRank[data]},
 NamedTensor[rowNames_Association,colNames_Association,data_]/;Length[rowNames]+Length[colNames]!=TensorRank[data]:=$Failed;
 NamedTensor[<||>, <||>, data_]:=data;
 NamedTensor/:MakeBoxes[tensor:NamedTensor[rowNames_Association,colNames_Association,data_],form:(StandardForm|TraditionalForm)]:=
-  With[{above={{BoxForm`SummaryItem[{"Row indices: ",Keys[rowNames]}],BoxForm`SummaryItem[{"Length: ",Length[rowNames]}]},
-                {BoxForm`SummaryItem[{"Column indices: ",Keys[colNames]}],BoxForm`SummaryItem[{"Length: ",Length[colNames]}]},
-                {BoxForm`SummaryItem[{"Data type: ",Head[data]}],SpanFromLeft}},
-    below=If[Head[data]===SparseArray,{{BoxForm`SummaryItem[{"Specified elements: ",Length@data["NonzeroPositions"]}],BoxForm`SummaryItem[{"Density: ",data["Density"]}]},
-                                        {BoxForm`SummaryItem[{"Default: ",data["Background"]}],SpanFromLeft},
-                                        {Pane[Row[{Style["Elements: ","SummaryItemAnnotation"],Take[ArrayRules[data],UpTo[4]]}],{300,Automatic},BaselinePosition->Baseline]}},
-                                       {{Pane[Row[{Style["Elements: ","SummaryItemAnnotation"],Short[data]}],{300,Automatic},BaselinePosition->Baseline]}}]},
-    BoxForm`ArrangeSummaryBox[
-      NamedTensor,
-      NamedTensor[rowNames,colNames,data],
-      None,
-      above,
-      below,
-      form,
-      "Interpretable"->Automatic
+  With[{dims=TensorDimensions[data]},
+    With[{above={{BoxForm`SummaryItem[{"Row dimensions: ",AssociationThread[Keys[rowNames],dims[[Values[rowNames]]]]}],BoxForm`SummaryItem[{"Length: ",Length[rowNames]}]},
+                  {BoxForm`SummaryItem[{"Column dimensions: ",AssociationThread[Keys[colNames],dims[[Values[colNames]]]]}],BoxForm`SummaryItem[{"Length: ",Length[colNames]}]},
+                  {BoxForm`SummaryItem[{"Data type: ",Head[data]}],SpanFromLeft}},
+      below=If[Head[data]===SparseArray,{{BoxForm`SummaryItem[{"Specified elements: ",Length@data["NonzeroPositions"]}],BoxForm`SummaryItem[{"Density: ",data["Density"]}]},
+                                          {BoxForm`SummaryItem[{"Default: ",data["Background"]}],SpanFromLeft},
+                                          {Pane[Row[{Style["Elements: ","SummaryItemAnnotation"],Take[ArrayRules[data],UpTo[4]]}],{300,Automatic},BaselinePosition->Baseline]}},
+                                         {{Pane[Row[{Style["Elements: ","SummaryItemAnnotation"],Short[data]}],{300,Automatic},BaselinePosition->Baseline]}}]},
+      BoxForm`ArrangeSummaryBox[
+        NamedTensor,
+        NamedTensor[rowNames,colNames,data],
+        None,
+        above,
+        below,
+        form,
+        "Interpretable"->Automatic
+      ]
     ]
   ];
 NamedTensor[rowNames_Association,colNames_Association,data_][rowParts_Association,colParts_Association]:=
