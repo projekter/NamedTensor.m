@@ -71,6 +71,15 @@ TensorContract[elements,contractions] contracts named tensors. Expects either an
 
 
 NamedOperation::usage="NamedOperation[gates,state,contraction,newNames] performs a quantum operation acting on a state. The gates will automatically also be applied in a conjugate-transpose manner on the right-hand side of the states. Refer to TensorContract for the other parameters.";
+MPODecomposition::usage="MPODecomposition[tensor,index->newName,...] decomposes tensor into a matrix product operator by a series of successive QR decompositions which take rows and columns in the specified order and using the given new names as contraction indices.
+
+MPODecomposition[tensor,{orderRow,orderCol}->newName,...] allows to specify a different order for rows and columns.
+
+MPODecomposition[tensor,index1,index2,...] uses predefined names \[Alpha]1, ...
+
+MPODecomposition[tensor] takes the default order of all rows and columns.
+
+MPODecomposition takes the option Truncate->fun, where fun takes a list of singular values and has to return a list of (possibly truncated) singular values of the same length.";
 
 
 NamedRowsQ::usage="NamedRowsQ[tensor,names] gives True iff tensor contains all rows in names.
@@ -608,6 +617,9 @@ TensorContract::invctr="Invalid contraction `1`; head must be List; elements mus
 Protect[TensorContract];
 
 
+(* Quantum operations *)
+
+
 `NamedOperation`adjointKeys=KeyMap[#<>"\[Dagger]"&];
 `NamedOperation`newName[s_String]:=With[{split=StringSplit[s,".",2]},If[Length[split]===2,split[[1]]<>"\[Dagger]."<>split[[2]],split[[1]]<>"\[Dagger]"]];
 `NamedOperation`extractStateOp[s_String]:=First[StringSplit[s,".",2]];
@@ -639,6 +651,68 @@ NamedOperation[gates_Association,states_List,contractions_]:=NamedOperation[gate
 NamedOperation[gates_List,states_List,contractions_]:=NamedOperation[Association[gates],Association[states],contractions];
 NamedOperation[gates__Rule,On,states__Rule,contractions_]:=NamedOperation[Association[gates],Association[states],contractions];
 Protect[NamedOperation];
+
+
+(* MPO decomposition. TODO: This is the slow iterative textbook variant. Improve speed by binary tree layout. Allow for custom geometries. *)
+
+
+Options[MPODecomposition]={Truncate->Identity};
+MPODecomposition[tensor_NamedTensor,order_Association/;Length[order]<=1,OptionsPattern[]]:=tensor;
+MPODecomposition[NamedTensor[rowNames_Association,colNames_Association,data_],order_Association/;AllTrue[Keys[order],Head[#]===List&&Length[#]===2&],opt:OptionsPattern[]]/;DisjointQ[Union[Values[rowNames],Values[colNames]],Values[order]]&&ContainsAll[Keys[rowNames],Keys[order][[All,1]]]&&ContainsAll[Keys[colNames],Keys[order][[All,2]]]:=
+  With[{orderKeys=Keys[order],newName=First@order,dims=TensorDimensions[data],trunc=OptionValue[Truncate]},
+    With[{leftRows=KeyDrop[rowNames,orderKeys[[2;;,1]]],leftCols=KeyDrop[colNames,orderKeys[[2;;,2]]],rightRows=Sort@KeyTake[rowNames,orderKeys[[2;;,1]]],rightCols=Sort@KeyTake[colNames,orderKeys[[2;;,2]]]},
+      With[{QR=QRDecomposition[Flatten[data,{Join[Values[leftRows],Values[leftCols]],Join[Values[rightRows],Values[rightCols]]}]],
+        lleftRows=Length@leftRows,lleftCols=Length@leftCols,lrightRows=Length@rightRows,lrightCols=Length@rightCols,
+        kleftRows=Keys@leftRows,kleftCols=Keys@leftCols,krightRows=Keys@rightRows,krightCols=Keys@rightCols},
+        With[{
+          newLeftData=With[{svd=SingularValueDecomposition[ConjugateTranspose@QR[[1]]]},
+            With[{truncDiag=trunc[Diagonal[svd[[2]]]]},
+              With[{nonzeros=Position[truncDiag,x_/;x!=0][[All,1]]},
+                {svd[[1,All,nonzeros]],DiagonalMatrix[truncDiag[[nonzeros]]] . ConjugateTranspose[svd[[3]]][[nonzeros]]}
+              ]
+            ]
+          ]},
+          Inactive[Dot][
+            NamedTensor[
+              AssociationThread[kleftRows,Range[lleftRows]],
+              Association[AssociationThread[kleftCols,Range[lleftRows+1,lleftRows+lleftCols]],<|newName->lleftRows+lleftCols+1|>],
+              ArrayReshape[newLeftData[[1]],Append[dims[[Join[rowNames/@kleftRows,colNames/@kleftCols]]],Length[newLeftData[[1,1]]]]]
+            ],
+            With[{
+              d=MPODecomposition[
+                NamedTensor[
+                  Association[<|newName->1|>,AssociationThread[krightRows,Range[2,lrightRows+1]]],
+                  AssociationThread[krightCols,Range[lrightRows+2,lrightRows+lrightCols+1]],
+                  ArrayReshape[newLeftData[[2]] . QR[[2]],Prepend[dims[[Join[rowNames/@krightRows,colNames/@krightCols]]],Length[newLeftData[[2]]]]]
+                ],
+                Rest[order],
+                opt
+              ]},
+              If[Head[d]===Inactive[Dot],Sequence@@d,d]
+            ]
+          ]
+        ]
+      ]
+    ]
+  ];
+MPODecomposition[NamedTensor[rowNames_Association,colNames_Association,data_],order_Association/;AnyTrue[Keys[order],Head[#]=!=List&],opt:OptionsPattern[]]:=
+  MPODecomposition[NamedTensor[rowNames,colNames,data],KeyMap[If[Head[#]===List,#,{#,#}]&,order],opt];
+MPODecomposition[tensor_NamedTensor,rules__Rule/;AllTrue[{rules}[[All,1]],Head[#]===String&],opt:OptionsPattern[]]:=MPODecomposition[tensor,Association[rules],opt];
+MPODecomposition[tensor_NamedTensor,indices_List,opt:OptionsPattern[]]:=MPODecomposition[tensor,Block[{\[FormalI]=1},Association[If[Head[#]===List,#,{#,#}]->"\[Alpha]"<>ToString[\[FormalI]++]&/@indices]],opt];
+MPODecomposition[NamedTensor[rowNames_Association,colNames_Association,data_],opt:OptionsPattern[]]:=
+  MPODecomposition[
+    NamedTensor[rowNames,colNames,data],
+    Block[{\[FormalI]=1},
+      Association[
+        {#,#}->"\[Alpha]"<>ToString[\[FormalI]++]&/@
+        With[{ck=Keys[colNames]},
+          Select[Keys[rowNames],MemberQ[ck,#]&]
+        ]
+      ]
+    ],
+    opt
+  ];
+Protect[MPODecomposition];
 
 
 (* some conditionals *)
