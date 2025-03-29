@@ -15,6 +15,11 @@ NamedTensor[indexNames,data] is a construction shorthand. indexNames is a list t
 NamedMatrix::usage="NamedMatrix[data] is a shorthand that converts a rank-2 tensor into a named tensor with empty names, one row and one column index.";
 NamedColumnVector::usage="NamedColumnVector[data] is a shorthand that converts a rank-1 tensor into a named tensor with one row index of empty name.";
 NamedRowVector::usage="NamedRowVector[data] is a shorthand that converts a rank-1 tensor into a named tensor with one column index of empty name.";
+NamedProjection::usage="NamedProjection[row or column vector] makes vectors into their projections (no normalization is performed!).
+
+NamedProjection[indexNames,data] is a construction shorthand for NamedProjection[NamedTensor[indexNames,{},data]].
+
+NamedProjection[...,Reals] does not conjugate.";
 
 
 RenameIndices::usage="RenameIndices[tensor,replacements] renames the row and column indices in a NamedTensor object according to the rules or association specified (no patterns!)";
@@ -206,7 +211,15 @@ NamedTensor[rowNames_Association,colNames_Association,data_][parts__Rule]:=With[
 NamedMatrix[data_/;TensorRank[data]===2]:=NamedTensor[<|""->1|>,<|""->2|>,data];
 NamedColumnVector[data_/;TensorRank[data]===1]:=NamedTensor[<|""->1|>,<||>,data];
 NamedRowVector[data_/;TensorRank[data]===1]:=NamedTensor[<||>,<|""->1|>,data];
-Protect[NamedMatrix,NamedColumnVector,NamedRowVector];
+NamedProjection[NamedTensor[rowNames_Association,<||>,data_]]:=NamedTensor[rowNames,rowNames+Length[rowNames],TensorProduct[data,Conjugate[data]]];
+NamedProjection[NamedTensor[<||>,colNames_Association,data_]]:=NamedTensor[colNames,colNames+Length[colNames],TensorProduct[Conjugate[data],data]];
+NamedProjection[NamedTensor[rowNames_Association,<||>,data_],Reals]:=NamedTensor[rowNames,rowNames+Length[rowNames],TensorProduct[data,data]];
+NamedProjection[NamedTensor[<||>,colNames_Association,data_],Reals]:=NamedTensor[colNames,colNames+Length[colNames],TensorProduct[data,data]];
+NamedProjection[indexNames_List,data_,rest___]:=With[{rank=TensorRank[data]},
+  Assert[Length[indexNames]===rank];
+  NamedProjection[NamedTensor[AssociationThread[indexNames,Range[rank]],<||>,data],rest]
+];
+Protect[NamedMatrix,NamedColumnVector,NamedRowVector,NamedProjection];
 
 
 RenameIndices[NamedTensor[rowNames_Association,colNames_Association,data_],newNames__]:=With[{renames=Association[newNames]},
