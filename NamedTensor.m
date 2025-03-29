@@ -331,6 +331,14 @@ Do[
         NamedTensor[rowNames1,colNames1,f[data1,TensorTranspose[data2,Table[If[KeyExistsQ[rowOrder2,i],rowNames1[rowOrder2[i]],colNames1[colOrder2[i]]],{i,TensorRank[data1]}]]]]
       ];
     f[NamedTensor[rowNames_Association,colNames_Association,data_],other_/;Head[other]=!=NamedTensor]:=NamedTensor[rowNames,colNames,f[data,other]];
+    f[nt1:NamedTensor[rowNames1_Association,colNames1_Association,data1_],nt2:NamedTensor[rowNames2_Association,colNames2_Association,data2_]]:=
+      With[{dim1=Dimensions[data1],dim2=Dimensions[data2],missing1=Complement[Keys[rowNames2],Keys[rowNames1]],missing2=Complement[Keys[rowNames1],Keys[rowNames2]]},
+        With[{missing1Dimensions=dim2[[Values[rowNames2[[Key/@missing1]]]]],missing2Dimensions=dim1[[Values[rowNames1[[Key/@missing2]]]]]},
+          f[If[missing1==={},nt1,TensorProduct[nt1,NamedTensor[missing1,ArrayReshape[IdentityMatrix[Times@@missing1Dimensions,Head[data1]],Join[missing1Dimensions,missing1Dimensions]]]]],
+            If[missing2==={},nt2,TensorProduct[nt2,NamedTensor[missing2,ArrayReshape[IdentityMatrix[Times@@missing2Dimensions,Head[data2]],Join[missing2Dimensions,missing2Dimensions]]]]]]
+          /;missing1Dimensions===dim2[[Values[colNames2[[Key/@Complement[Keys[colNames2],Keys[colNames1]]]]]]]&&missing2Dimensions===dim1[[Values[colNames1[[Key/@Complement[Keys[colNames1],Keys[colNames2]]]]]]]
+        ]
+      ];
     Protect[f]
   ],
   {f,{Plus,Minus,Times,Divide}}
@@ -341,7 +349,11 @@ Do[
     f[NamedTensor[rowNames_Association,colNames_Association,data_],args___]:=NamedTensor[rowNames,colNames,f[data,args]];
     Protect[f]
   ],
-  {f,{Conjugate,Simplify,FullSimplify,SparseArray,Normal,N,Rationalize}}
+  {f,{Simplify,FullSimplify,SparseArray,Normal,N,Chop,SetPrecision,SetAccuracy,
+      IntegerPart,FractionalPart,Round,Floor,Ceiling,Rationalize,
+      RealSign,UnitStep,RealAbs,Clip,Rescale,
+      Re,Im,Conjugate,Abs,Arg,Sign,
+      Boole}}
 ];
 (* for SparseArrays, Rationalize doesn't work as expected... *)
 Unprotect[Rationalize];
